@@ -3,60 +3,82 @@ using System.Collections.Generic;
 using System.Linq;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml;
 namespace MashupConverter
 {
 	public class ServiceTiming
 	{
 		private SlidePart slide;
-		public List<List<List<uint>>> timing = new List<List<List<uint>>>();
 
 		public ServiceTiming(SlidePart slide)
 		{
 			this.slide = slide;
-			Extract();
 		}
 
-		private void Extract()
+		public IEnumerable<NonBlockedFlow> NonBlockedFlows
 		{
-			Timing pptTiming = slide.Slide.Timing;
-			var ctnQuery =
-				from ctn in pptTiming.Descendants<CommonTimeNode>()
-				where ctn.NodeType != null && ctn.NodeType == TimeNodeValues.ClickEffect
-				select ctn;
-			foreach (var ctn in ctnQuery)
+			get
 			{
-				// At the checkpoint where the user should click to play the animation.
-				var parallels = PlayCheckpoint(ctn);
-				timing.Add(parallels);
+				Timing pptTiming = slide.Slide.Timing;
+				var ctnQuery =
+					from ctn in pptTiming.Descendants<CommonTimeNode>()
+					where ctn.NodeType != null && ctn.NodeType == TimeNodeValues.ClickEffect
+					select ctn;
+				foreach (var ctn in ctnQuery)
+				{
+					// At the checkpoint where the user should click to play the animation.
+					var flow = new NonBlockedFlow(ctn);
+					yield return flow;
+				}
 			}
 		}
 
-		private List<List<uint>> PlayCheckpoint(CommonTimeNode ctn)
+		public class NonBlockedFlow
 		{
-			var outerPar = ctn.Parent.Parent.Parent.Parent.Parent;
-			var timeNodes = outerPar.Parent;
-			var parallels = new List<List<uint>>();
-			foreach (var par in outerPar.Elements<ParallelTimeNode>())
+			private CommonTimeNode ctn;
+
+			public NonBlockedFlow(CommonTimeNode ctn)
 			{
-				var innerCtn = (CommonTimeNode) par.FirstChild;
-				var parallel = PlayParallel(innerCtn);
-				parallels.Add(parallel);
+				this.ctn = ctn;
 			}
-			return parallels;
+
+			public IEnumerable<ParallelTiming> ParallelTimings
+			{
+				get
+				{
+					var outerPar = ctn.Parent.Parent.Parent.Parent.Parent;
+					var timeNodes = outerPar.Parent;
+					foreach (var par in outerPar.Elements<ParallelTimeNode>())
+					{
+						var innerCtn = (CommonTimeNode)par.FirstChild;
+						var parallel = new ParallelTiming(innerCtn);
+						yield return parallel;
+					}
+				}
+			}
 		}
 
-		private List<uint> PlayParallel(CommonTimeNode ctn)
+		public class ParallelTiming
 		{
-			var parallel = new List<uint>();
-			var shapePars = ctn.ChildTimeNodeList.Elements<ParallelTimeNode>();
-			foreach (ParallelTimeNode shapePar in shapePars)
+			private CommonTimeNode ctn;
+
+			public ParallelTiming(CommonTimeNode ctn)
 			{
-				var shapeSet = shapePar.CommonTimeNode.ChildTimeNodeList.Elements<SetBehavior>().First();
-				var shapeId = shapeSet.CommonBehavior.TargetElement.ShapeTarget.ShapeId;
-				parallel.Add(Convert.ToUInt32(shapeId));
+				this.ctn = ctn;
 			}
-			return parallel;
+
+			public IEnumerable<uint> ShapeIds
+			{
+				get
+				{
+					var shapePars = ctn.ChildTimeNodeList.Elements<ParallelTimeNode>();
+					foreach (ParallelTimeNode shapePar in shapePars)
+					{
+						var shapeSet = shapePar.CommonTimeNode.ChildTimeNodeList.Elements<SetBehavior>().First();
+						var shapeId = shapeSet.CommonBehavior.TargetElement.ShapeTarget.ShapeId;
+						yield return Convert.ToUInt32(shapeId);
+					}
+				}
+			}
 		}
 	}
 }
