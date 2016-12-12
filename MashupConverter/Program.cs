@@ -20,7 +20,7 @@ namespace MashupConverter
 				var relId = (slideIds[0] as SlideId).RelationshipId;
 
 				SlidePart slide = (SlidePart)part.GetPartById(relId);
-				ServiceTiming st = new ServiceTiming(slide);
+				ServiceTiming.Activity st = new ServiceTiming.Activity(slide);
 				StringBuilder sb = new StringBuilder();
 
 				sb.Append('[');

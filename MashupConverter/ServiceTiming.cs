@@ -5,29 +5,32 @@ using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Packaging;
 namespace MashupConverter
 {
-	public class ServiceTiming
+	namespace ServiceTiming
 	{
-		private SlidePart slide;
-
-		public ServiceTiming(SlidePart slide)
+		public class Activity
 		{
-			this.slide = slide;
-		}
+			SlidePart slide;
 
-		public IEnumerable<NonBlockedFlow> NonBlockedFlows
-		{
-			get
+			public Activity(SlidePart slide)
 			{
-				Timing pptTiming = slide.Slide.Timing;
-				var ctnQuery =
-					from ctn in pptTiming.Descendants<CommonTimeNode>()
-					where ctn.NodeType != null && ctn.NodeType == TimeNodeValues.ClickEffect
-					select ctn;
-				foreach (var ctn in ctnQuery)
+				this.slide = slide;
+			}
+
+			public IEnumerable<NonBlockedFlow> NonBlockedFlows
+			{
+				get
 				{
-					// At the checkpoint where the user should click to play the animation.
-					var flow = new NonBlockedFlow(ctn);
-					yield return flow;
+					Timing pptTiming = slide.Slide.Timing;
+					var ctnQuery =
+						from ctn in pptTiming.Descendants<CommonTimeNode>()
+						where ctn.NodeType != null && ctn.NodeType == TimeNodeValues.ClickEffect
+						select ctn;
+					foreach (var ctn in ctnQuery)
+					{
+						// At the checkpoint where the user should click to play the animation.
+						var flow = new NonBlockedFlow(ctn);
+						yield return flow;
+					}
 				}
 			}
 		}
