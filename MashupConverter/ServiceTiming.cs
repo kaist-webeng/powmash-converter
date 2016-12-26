@@ -7,20 +7,20 @@ namespace MashupConverter
 {
 	namespace ServiceTiming
 	{
-		public class Activity
+		public class ActivityTiming
 		{
-			SlidePart slide;
+			private readonly SlidePart _slide;
 
-			public Activity(SlidePart slide)
+			public ActivityTiming(SlidePart slide)
 			{
-				this.slide = slide;
+				_slide = slide;
 			}
 
-			public IEnumerable<NonBlockedFlow> NonBlockedFlows
+			public IEnumerable<SequenceTiming> SequenceTimings
 			{
 				get
 				{
-					Timing pptTiming = slide.Slide.Timing;
+					var pptTiming = _slide.Slide.Timing;
 					var ctnQuery =
 						from ctn in pptTiming.Descendants<CommonTimeNode>()
 						where ctn.NodeType != null && ctn.NodeType == TimeNodeValues.ClickEffect
@@ -28,28 +28,27 @@ namespace MashupConverter
 					foreach (var ctn in ctnQuery)
 					{
 						// At the checkpoint where the user should click to play the animation.
-						var flow = new NonBlockedFlow(ctn);
-						yield return flow;
+						var timing = new SequenceTiming(ctn);
+						yield return timing;
 					}
 				}
 			}
 		}
 
-		public class NonBlockedFlow
+		public class SequenceTiming
 		{
-			private CommonTimeNode ctn;
+			private readonly CommonTimeNode _ctn;
 
-			public NonBlockedFlow(CommonTimeNode ctn)
+			public SequenceTiming(CommonTimeNode ctn)
 			{
-				this.ctn = ctn;
+				_ctn = ctn;
 			}
 
 			public IEnumerable<ParallelTiming> ParallelTimings
 			{
 				get
 				{
-					var outerPar = ctn.Parent.Parent.Parent.Parent.Parent;
-					var timeNodes = outerPar.Parent;
+					var outerPar = _ctn.Parent.Parent.Parent.Parent.Parent;
 					foreach (var par in outerPar.Elements<ParallelTimeNode>())
 					{
 						var innerCtn = (CommonTimeNode)par.FirstChild;
@@ -62,19 +61,19 @@ namespace MashupConverter
 
 		public class ParallelTiming
 		{
-			private CommonTimeNode ctn;
+			private readonly CommonTimeNode _ctn;
 
 			public ParallelTiming(CommonTimeNode ctn)
 			{
-				this.ctn = ctn;
+				_ctn = ctn;
 			}
 
 			public IEnumerable<uint> ShapeIds
 			{
 				get
 				{
-					var shapePars = ctn.ChildTimeNodeList.Elements<ParallelTimeNode>();
-					foreach (ParallelTimeNode shapePar in shapePars)
+					var shapePars = _ctn.ChildTimeNodeList.Elements<ParallelTimeNode>();
+					foreach (var shapePar in shapePars)
 					{
 						var shapeSet = shapePar.CommonTimeNode.ChildTimeNodeList.Elements<SetBehavior>().First();
 						var shapeId = shapeSet.CommonBehavior.TargetElement.ShapeTarget.ShapeId;

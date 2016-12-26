@@ -20,17 +20,17 @@ namespace MashupConverter
 				var relId = (slideIds[0] as SlideId).RelationshipId;
 
 				SlidePart slide = (SlidePart)part.GetPartById(relId);
-				ServiceTiming.Activity st = new ServiceTiming.Activity(slide);
+				ServiceTiming.ActivityTiming at = new ServiceTiming.ActivityTiming(slide);
 				StringBuilder sb = new StringBuilder();
 
 				sb.Append('[');
-				foreach (var flow in st.NonBlockedFlows)
+				foreach (var seqTiming in at.SequenceTimings)
 				{
 					sb.Append('[');
-					foreach (var timing in flow.ParallelTimings)
+					foreach (var parTiming in seqTiming.ParallelTimings)
 					{
 						sb.Append('[');
-						foreach (var sid in timing.ShapeIds)
+						foreach (var sid in parTiming.ShapeIds)
 						{
 							sb.AppendFormat("{0},", sid);
 						}
