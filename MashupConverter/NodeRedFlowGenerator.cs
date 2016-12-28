@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using MashupConverter.ServiceTiming;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -40,14 +41,9 @@ namespace MashupConverter
 	        // Place HTTP response node last.
 	        var nidHttpRes = generateHttpResNode();
 	        // For each activity, generate its flow.
-	        var nidsActivity = new List<string>();
-	        foreach (var timing in _activityTimings)
-	        {
-	            var nid = generateActivityNode(timing, nidHttpRes);
-	            nidsActivity.Add(nid);
-	        }
+	        var nidsActivity = _activityTimings.Select(timing => generateActivityFlow(timing, nidHttpRes)).ToList();
 	        // Place switch node for activity index then.
-	        var nidSwitchActivity = generateSwitchActivityNode(nidsActivity);
+	        var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
 	        // Place HTTP request node first.
 	        generateHttpReqNode(nidSwitchActivity);
 
@@ -63,7 +59,7 @@ namespace MashupConverter
 	        return node.Id;
 	    }
 
-	    private string generateActivityNode(ActivityTiming timing, string nidHttpRes)
+	    private string generateActivityFlow(ActivityTiming timing, string nidHttpRes)
 	    {
 	        // TODO: generate a switch node for non-blocked flows in the activity here.
 	        var node = new NRNode(type: "switch");
@@ -71,7 +67,7 @@ namespace MashupConverter
 	        return node.Id;
 	    }
 
-	    private string generateSwitchActivityNode(List<string> nidsActivity)
+	    private string generateSwitchActivityFlow(List<string> nidsActivity)
 	    {
 	        // TODO: generate a switch node for activities here.
 	        var node = new NRNode(type: "switch");
