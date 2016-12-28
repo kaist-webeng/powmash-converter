@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using MashupConverter.ServiceTiming;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -94,17 +95,38 @@ namespace MashupConverter
 	    private static readonly Random _random = new Random();
 
         public string Id;
+        private JArray _wires;
 
         public NRNode(string type)
         {
             this["id"] = Id = GenerateId();
             this["type"] = type;
+            this["wires"] = _wires = new JArray();
         }
 
         public static string GenerateId()
         {
             // This one is similar to the random ID generation from Node-RED, but not the same.
             return _random.Next().ToString("x8") + '.' + (_random.Next(0xffffff) + 1).ToString("x6");
+        }
+
+        public void Wire(string nid, uint outputIdx=0)
+        {
+            if (_wires.Count <= outputIdx)
+            {
+                var i = outputIdx - _wires.Count;
+                do
+                {
+                    _wires.Add(new JArray());
+                } while (i-- > 0);
+            }
+            Debug.Assert(_wires[outputIdx] != null);
+            ((JArray) _wires[outputIdx]).Add(nid);
+        }
+
+        public void Wire(NRNode node, uint outputIdx=0)
+        {
+            Wire(node.Id, outputIdx);
         }
     }
 }
