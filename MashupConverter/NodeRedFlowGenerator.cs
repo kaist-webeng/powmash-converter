@@ -53,7 +53,6 @@ namespace MashupConverter
 
 	    private string generateHttpResNode()
 	    {
-	        // TODO: generate a HTTP response node here.
 	        var node = new NRNode(type: "http response");
 	        node.WriteTo(_writer);
 	        return node.Id;
@@ -62,9 +61,26 @@ namespace MashupConverter
 	    private string generateActivityFlow(ActivityTiming timing, string nidHttpRes)
 	    {
 	        // TODO: generate a switch node for non-blocked flows in the activity here.
-	        var node = new NRNode(type: "switch");
-	        node.WriteTo(_writer);
-	        return node.Id;
+	        var returnNode = new NRFunctionNode();
+	        var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.nbfIdx", checkall: false);
+	        var i = 0u;
+	        foreach (var seqTiming in timing.SequenceTimings)
+	        {
+	            var nidSequence = generateSequenceFlow(seqTiming, returnNode.Id);
+	            switchNode.Wire(nidSequence, i);
+	            ++i;
+	        }
+	        returnNode.Wire(nidHttpRes);
+	        returnNode.WriteTo(_writer);
+	        switchNode.WriteTo(_writer);
+	        return switchNode.Id;
+	    }
+
+	    private string generateSequenceFlow(SequenceTiming timing, string nidReturn)
+	    {
+	        // TODO: generate a Node-RED flow for the timing and return the ID of the first node here.
+	        string nidFirst = null;
+	        return nidFirst;
 	    }
 
 	    private string generateSwitchActivityFlow(List<string> nidsActivity)
@@ -154,7 +170,7 @@ namespace MashupConverter
         private static readonly string[] _ptypeValues = {"msg", "flow", "global"};
         private JArray _rules;
 
-        public NRSwitchNode(PropertyType ptype, string property=null, bool checkall=true) : base("switch")
+        public NRSwitchNode(PropertyType ptype, string property = null, bool checkall = true) : base("switch")
         {
             this["propertyType"] = _ptypeValues[(uint) ptype];
             this["property"] = property;
