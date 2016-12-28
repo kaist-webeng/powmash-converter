@@ -129,4 +129,61 @@ namespace MashupConverter
             Wire(node.Id, outputIdx);
         }
     }
+
+    public class NRSwitchRule : JObject
+    {
+        public enum OperatorType
+        {
+            // TODO: fully support the operators available in switch nodes
+            EQ
+        }
+
+        private static readonly string[] _tValues = {"eq"};
+
+        public NRSwitchRule(OperatorType t)
+        {
+            this["t"] = _tValues[(uint) t];
+        }
+    }
+
+    public class NRSwitchNode : NRNode
+    {
+        public enum PropertyType
+        {
+            MSG,
+            FLOW,
+            GLOBAL
+        }
+
+        private static readonly string[] _ptypeValues = {"msg", "flow", "global"};
+        private JArray _rules;
+
+        public NRSwitchNode(PropertyType ptype, string property=null, bool checkall=true) : base("switch")
+        {
+            this["propertyType"] = _ptypeValues[(uint) ptype];
+            this["property"] = property;
+            this["checkall"] = checkall;
+            this["outputs"] = 0;
+            this["rules"] = _rules = new JArray();
+        }
+
+        public void AddRule(NRSwitchRule rule)
+        {
+            _rules.Add(rule);
+            this["outputs"] = _rules.Count;
+        }
+
+        public bool RemoveRule(NRSwitchRule rule)
+        {
+            var ret = _rules.Remove(rule);
+            this["outputs"] = _rules.Count;
+            return ret;
+        }
+
+        public void RemoveRuleAt(int index)
+        {
+            _rules.RemoveAt(index);
+            this["outputs"] = _rules.Count;
+        }
+    }
 }
