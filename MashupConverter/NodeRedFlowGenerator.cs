@@ -100,12 +100,17 @@ namespace MashupConverter
 	        // TODO: generate a flow which executes multiple services in parallel with the message from prev as input and writes the message to next as the output, and wire the nodes.
 	    }
 
-	    private string generateSwitchActivityFlow(List<string> nidsActivity)
+	    private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity)
 	    {
-	        // TODO: generate a switch node for activities here.
-	        var node = new NRNode(type: "switch");
-	        node.WriteTo(_writer);
-	        return node.Id;
+	        var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.activityIdx", checkall: false);
+	        var i = 0u;
+	        foreach (var nid in nidsActivity)
+	        {
+	            switchNode.Wire(nid, i);
+	            ++i;
+	        }
+	        switchNode.WriteTo(_writer);
+	        return switchNode.Id;
 	    }
 
 	    private void generateHttpReqNode(string nidSwitchActivity)
