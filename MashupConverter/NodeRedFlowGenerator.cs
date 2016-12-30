@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using MashupConverter.ServiceTiming;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -78,9 +79,25 @@ namespace MashupConverter
 
 	    private string generateSequenceFlow(SequenceTiming timing, string nidReturn)
 	    {
-	        // TODO: generate a Node-RED flow for the timing and return the ID of the first node here.
-	        string nidFirst = null;
-	        return nidFirst;
+	        var firstNode = new NRFunctionNode();
+	        var prev = firstNode;
+	        foreach (var parTiming in timing.ParallelTimings)
+	        {
+	            var next = new NRJoinFunctionNode();
+	            // prev will be written in this invocation.
+	            generateParallelFlow(parTiming, prev, next);
+	            prev = next;
+	        }
+	        // For understandability.
+	        var last = prev;
+	        last.Wire(nidReturn);
+	        last.WriteTo(_writer);
+	        return firstNode.Id;
+	    }
+
+	    private void generateParallelFlow(ParallelTiming timing, NRFunctionNode prev, NRJoinFunctionNode next)
+	    {
+	        // TODO: generate a flow which executes multiple services in parallel with the message from prev as input and writes the message to next as the output, and wire the nodes.
 	    }
 
 	    private string generateSwitchActivityFlow(List<string> nidsActivity)
@@ -196,6 +213,57 @@ namespace MashupConverter
         {
             _rules.RemoveAt(index);
             this["outputs"] = _rules.Count;
+        }
+    }
+
+    public class NRFunctionNode : NRNode
+    {
+        public NRFunctionNode(string func = "return msg;", int outputs = 1) : base("function")
+        {
+            this["func"] = func;
+            this["outputs"] = outputs;
+        }
+    }
+
+    public class NRJoinFunctionNode : NRFunctionNode
+    {
+        private readonly List<string> _topics;
+
+        public NRJoinFunctionNode(IReadOnlyCollection<string> topics = null)
+        {
+            _topics = null == topics ? new List<string>() : new List<string>(topics);
+        }
+
+        public void AddTopic(string topic)
+        {
+            _topics.Add(topic);
+        }
+
+        public void UpdateFunc()
+        {
+            var sb = new StringBuilder();
+            sb.Append(@"let p = context.get('p') || undefined;
+            if (undefined !== p) {
+                return;
+            }
+            p = {};
+            let ps = [];
+            ");
+            foreach (var topic in _topics)
+            {
+                sb.AppendFormat("ps.push(p['{0}'] = new Promise((resolve, reject) => undefined));\n", topic);
+            }
+            sb.Append(@"let pAll = Promise.all(ps);
+            pAll.then((...msgs) => node.send(msgs[0]));
+            context.set('p', p);
+            ");
+            this["func"] = sb.ToString();
+        }
+
+        public override void WriteTo(JsonWriter writer, params JsonConverter[] converters)
+        {
+            UpdateFunc();
+            base.WriteTo(writer, converters);
         }
     }
 }
