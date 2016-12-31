@@ -1,6 +1,4 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
-using MashupConverter.AbstractService;
-using MashupConverter.ServiceTiming;
 
 namespace MashupConverter
 {
