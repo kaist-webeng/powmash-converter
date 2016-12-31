@@ -41,7 +41,7 @@ namespace MashupConverter
             // Place HTTP response node last.
             var nidHttpRes = generateHttpResNode();
             // For each activity, generate its flow.
-            var nidsActivity = _activities.Select(a => generateActivityFlow(a.Timing, nidHttpRes));
+            var nidsActivity = _activities.Select(a => new ActivityNRFlowGenerator(a, _writer).generate(nidHttpRes));
             // Place switch node for activity index then.
             var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
             // Place HTTP request node first.
@@ -58,12 +58,49 @@ namespace MashupConverter
             return node.Id;
         }
 
-        private string generateActivityFlow(ActivityTiming timing, string nidHttpRes)
+        private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity)
+        {
+            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.activityIdx", checkall: false);
+            var i = 0u;
+            foreach (var nid in nidsActivity)
+            {
+                switchNode.Wire(nid, i);
+                ++i;
+            }
+            switchNode.WriteTo(_writer);
+            return switchNode.Id;
+        }
+
+        private void generateHttpReqNode(string nidSwitchActivity)
+        {
+            // TODO: generate a HTTP request node here.
+            var node = new NRNode(type: "http request");
+            node.WriteTo(_writer);
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    class ActivityNRFlowGenerator
+    {
+        private readonly Activity _activity;
+        private readonly JsonWriter _writer;
+
+        public ActivityNRFlowGenerator(Activity activity, JsonWriter writer)
+        {
+            _activity = activity;
+            _writer = writer;
+        }
+
+        public string generate(string nidHttpRes)
         {
             // TODO: generate a switch node for non-blocked flows in the activity here.
             var returnNode = new NRFunctionNode();
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.nbfIdx", checkall: false);
             var i = 0u;
+            var timing = _activity.Timing;
             foreach (var seqTiming in timing.SequenceTimings)
             {
                 var nidSequence = generateSequenceFlow(seqTiming, returnNode.Id);
@@ -97,30 +134,6 @@ namespace MashupConverter
         private void generateParallelFlow(ParallelTiming timing, NRFunctionNode prev, NRJoinFunctionNode next)
         {
             // TODO: generate a flow which executes multiple services in parallel with the message from prev as input and writes the message to next as the output, and wire the nodes.
-        }
-
-        private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity)
-        {
-            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.activityIdx", checkall: false);
-            var i = 0u;
-            foreach (var nid in nidsActivity)
-            {
-                switchNode.Wire(nid, i);
-                ++i;
-            }
-            switchNode.WriteTo(_writer);
-            return switchNode.Id;
-        }
-
-        private void generateHttpReqNode(string nidSwitchActivity)
-        {
-            // TODO: generate a HTTP request node here.
-            var node = new NRNode(type: "http request");
-            node.WriteTo(_writer);
-        }
-
-        public void Dispose()
-        {
         }
     }
 
