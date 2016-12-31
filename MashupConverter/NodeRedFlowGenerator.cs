@@ -11,7 +11,7 @@ namespace MashupConverter
 {
 	public class NodeRedFlowGenerator : IDisposable
 	{
-	    private List<ActivityTiming> _activityTimings;
+	    private List<Activity> _activities;
 	    private JsonWriter _writer;
 
 		public NodeRedFlowGenerator(JsonWriter writer)
@@ -19,10 +19,10 @@ namespace MashupConverter
 		    _writer = writer;
 		}
 
-		public void Add(ActivityTiming timing)
-		{
-		    _activityTimings.Add(timing);
-		}
+	    public void Add(Activity activity)
+	    {
+	        _activities.Add(activity);
+	    }
 
 	    public void Generate()
 	    {
@@ -42,7 +42,7 @@ namespace MashupConverter
 	        // Place HTTP response node last.
 	        var nidHttpRes = generateHttpResNode();
 	        // For each activity, generate its flow.
-	        var nidsActivity = _activityTimings.Select(timing => generateActivityFlow(timing, nidHttpRes)).ToList();
+	        var nidsActivity = _activities.Select(a => generateActivityFlow(a.Timing, nidHttpRes));
 	        // Place switch node for activity index then.
 	        var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
 	        // Place HTTP request node first.
