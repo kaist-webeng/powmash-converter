@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using DocumentFormat.OpenXml.Presentation;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -133,7 +134,40 @@ namespace MashupConverter
 
         private void generateParallelFlow(ParallelTiming timing, NRFunctionNode prev, NRJoinFunctionNode next)
         {
-            // TODO: generate a flow which executes multiple services in parallel with the message from prev as input and writes the message to next as the output, and wire the nodes.
+            var svcmap = _activity.ServiceMap;
+            foreach (var item in timing.ShapeIds.Select((sid, i) => new {service = svcmap.Lookup(sid), i}))
+            {
+                var service = item.service;
+                if (null == service)
+                {
+                    // No available service for the shape.
+                    continue;
+                }
+
+                JObject flowObj;
+                using (var nodeReader = service.NodeRedNode.Reader)
+                {
+                    flowObj = (JObject) JToken.ReadFrom(nodeReader);
+                }
+                var meta = (JObject) flowObj["meta"];
+                var nidIn = (string) meta["in"];
+                var nidOut = (string) meta["out"];
+
+                foreach (var node in flowObj["flow"])
+                {
+                    var id = (string) node["id"];
+                    if (nidIn.Equals(id))
+                    {
+                        prev.Wire(id, (uint) item.i);
+                    }
+                    if (nidOut.Equals(id))
+                    {
+                        NRNode.Wire((JObject) node, next.Id);
+                    }
+                    node.WriteTo(_writer);
+                }
+            }
+            prev.WriteTo(_writer);
         }
     }
 
@@ -156,18 +190,30 @@ namespace MashupConverter
             return _random.Next().ToString("x8") + '.' + (_random.Next(0xffffff) + 1).ToString("x6");
         }
 
-        public void Wire(string nid, uint outputIdx=0)
+        public static void Wire(JObject node, string nid, uint outputIdx = 0)
         {
-            if (_wires.Count <= outputIdx)
+            JToken _wires;
+            if (!node.TryGetValue("wires", out _wires))
             {
-                var i = outputIdx - _wires.Count;
+                node["wires"] = _wires = new JArray();
+            }
+            var wires = (JArray) _wires;
+
+            if (wires.Count <= outputIdx)
+            {
+                var i = outputIdx - wires.Count;
                 do
                 {
-                    _wires.Add(new JArray());
+                    wires.Add(new JArray());
                 } while (i-- > 0);
             }
-            Debug.Assert(_wires[outputIdx] != null);
-            ((JArray) _wires[outputIdx]).Add(nid);
+            Debug.Assert(wires[outputIdx] != null);
+            ((JArray) wires[outputIdx]).Add(nid);
+        }
+
+        public void Wire(string nid, uint outputIdx=0)
+        {
+            Wire(this, nid, outputIdx);
         }
 
         public void Wire(NRNode node, uint outputIdx=0)

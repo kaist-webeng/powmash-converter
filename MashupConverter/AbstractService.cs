@@ -76,6 +76,13 @@ namespace MashupConverter
             populate();
         }
 
+        public Service Lookup(uint uid)
+        {
+            Service s;
+            _dict.TryGetValue(uid, out s);
+            return s;
+        }
+
         private void populate()
         {
             var slide = _slidePart.Slide;
