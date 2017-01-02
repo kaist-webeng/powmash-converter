@@ -45,8 +45,8 @@ namespace MashupConverter
             var nidsActivity = _activities.Select(a => new ActivityNRFlowGenerator(a, _writer).generate(nidHttpRes));
             // Place switch node for activity index then.
             var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
-            // Place HTTP request node first.
-            generateHttpReqNode(nidSwitchActivity);
+            // Place HTTP input node first.
+            generateHttpInNode(nidSwitchActivity);
 
             // End a JSON array in the writer.
             _writer.WriteEndArray();
@@ -72,10 +72,11 @@ namespace MashupConverter
             return switchNode.Id;
         }
 
-        private void generateHttpReqNode(string nidSwitchActivity)
+        private void generateHttpInNode(string nidSwitchActivity)
         {
-            // TODO: generate a HTTP request node here.
-            var node = new NRNode(type: "http request");
+            var node = new NRHttpInNode(url: "/activities/:activityIdx/nbfs/:nbfIdx/execute",
+                method: NRHttpInNode.HttpMethod.POST);
+            node.Wire(nidSwitchActivity);
             node.WriteTo(_writer);
         }
 
@@ -327,6 +328,20 @@ namespace MashupConverter
         {
             UpdateFunc();
             base.WriteTo(writer, converters);
+        }
+    }
+
+    public class NRHttpInNode : NRNode
+    {
+        public enum HttpMethod {GET, POST, PUT, DELETE, PATCH}
+
+        private static readonly string[] _methodValues = {"get", "post", "put", "delete", "patch"};
+
+        public NRHttpInNode(string url, HttpMethod method, string swaggerDoc = "") : base("http in")
+        {
+            this["url"] = url;
+            this["method"] = _methodValues[(uint) method];
+            this["swaggerDoc"] = swaggerDoc;
         }
     }
 }
