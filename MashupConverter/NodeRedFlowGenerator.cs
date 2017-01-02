@@ -145,9 +145,9 @@ namespace MashupConverter
                 }
 
                 JObject flowObj;
-                using (var nodeReader = service.NodeRedNode.Reader)
+                using (var flowReader = service.NodeRedFlow.Reader)
                 {
-                    flowObj = (JObject) JToken.ReadFrom(nodeReader);
+                    flowObj = (JObject) JToken.ReadFrom(flowReader);
                 }
                 var meta = (JObject) flowObj["meta"];
                 var nidIn = (string) meta["in"];

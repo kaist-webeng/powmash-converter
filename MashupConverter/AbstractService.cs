@@ -40,16 +40,16 @@ namespace MashupConverter
             return _dict[shapeType];
         }
 
-        public ServiceNode NodeRedNode => new ServiceNode(this);
+        public ServiceFlow NodeRedFlow => new ServiceFlow(this);
     }
 
-    public class ServiceNode : IDisposable
+    public class ServiceFlow : IDisposable
     {
         private Stream _s;
         private StreamReader _sr;
         public JsonReader Reader;
 
-        public ServiceNode(Service svc)
+        public ServiceFlow(Service svc)
         {
             var filePath = svc.nodeName + ".json";
             _s = new FileStream(filePath, FileMode.Open, FileAccess.Read);
