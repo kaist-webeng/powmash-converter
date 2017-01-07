@@ -66,8 +66,12 @@ namespace MashupConverter
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currActivity",
                 checkall: false);
             var i = 0u;
+            NRSwitchRule rule;
             foreach (var nid in nidsActivity)
             {
+                rule = new NRSwitchRule(NRSwitchRule.OperatorType.EQ, (i + 1).ToString(),
+                    NRSwitchRule.ValueType.Num);
+                switchNode.AddRule(rule);
                 switchNode.Wire(nid, i);
                 ++i;
             }
@@ -85,7 +89,9 @@ namespace MashupConverter
                 field: "payload",
                 format: NRTemplateNode.Format.Json,
                 syntax: NRTemplateNode.Syntax.Plain);
-            switchNode.Wire(endOfTaskTemplateNode, i++);
+            rule = new NRSwitchRule(NRSwitchRule.OperatorType.EQ, (i + 1).ToString(), NRSwitchRule.ValueType.Num);
+            switchNode.AddRule(rule);
+            switchNode.Wire(endOfTaskTemplateNode, i);
             switchNode.WriteTo(_writer);
             return switchNode.Id;
         }
@@ -154,6 +160,9 @@ return msg;
             foreach (var stepTiming in timing.StepTimings)
             {
                 var nidStep = generateStepFlow(stepTiming, returnNode.Id);
+                var rule = new NRSwitchRule(NRSwitchRule.OperatorType.EQ, (i + 1).ToString(),
+                    NRSwitchRule.ValueType.Num);
+                switchNode.AddRule(rule);
                 switchNode.Wire(nidStep, i);
                 ++i;
             }
@@ -277,17 +286,18 @@ return msg;
 
     public class NRSwitchRule : JObject
     {
-        public enum OperatorType
-        {
-            // TODO: fully support the operators available in switch nodes
-            EQ
-        }
+        // TODO: fully support the operators and the value types available in switch nodes.
+        public enum OperatorType {EQ}
+        public enum ValueType {Num}
 
-        private static readonly string[] _tValues = {"eq"};
+        private static readonly string[] TValues = {"eq"};
+        private static readonly string[] VtValues = {"num"};
 
-        public NRSwitchRule(OperatorType t)
+        public NRSwitchRule(OperatorType t, string v, ValueType vt)
         {
-            this["t"] = _tValues[(uint) t];
+            this["t"] = TValues[(uint) t];
+            this["v"] = v;
+            this["vt"] = VtValues[(uint) vt];
         }
     }
 
