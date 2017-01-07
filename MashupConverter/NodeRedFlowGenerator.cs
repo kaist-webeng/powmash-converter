@@ -103,10 +103,10 @@ namespace MashupConverter
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.nbfIdx", checkall: false);
             var i = 0u;
             var timing = _activity.Timing;
-            foreach (var seqTiming in timing.SequenceTimings)
+            foreach (var stepTiming in timing.StepTimings)
             {
-                var nidSequence = generateSequenceFlow(seqTiming, returnNode.Id);
-                switchNode.Wire(nidSequence, i);
+                var nidStep = generateStepFlow(stepTiming, returnNode.Id);
+                switchNode.Wire(nidStep, i);
                 ++i;
             }
             returnNode.Wire(nidHttpRes);
@@ -115,7 +115,7 @@ namespace MashupConverter
             return switchNode.Id;
         }
 
-        private string generateSequenceFlow(SequenceTiming timing, string nidReturn)
+        private string generateStepFlow(StepTiming timing, string nidReturn)
         {
             var firstNode = new NRFunctionNode();
             var prev = firstNode;

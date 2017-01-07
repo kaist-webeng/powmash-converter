@@ -24,10 +24,10 @@ namespace MashupConverter
 				StringBuilder sb = new StringBuilder();
 
 				sb.Append('[');
-				foreach (var seqTiming in at.SequenceTimings)
+				foreach (var stepTiming in at.StepTimings)
 				{
 					sb.Append('[');
-					foreach (var parTiming in seqTiming.ParallelTimings)
+					foreach (var parTiming in stepTiming.ParallelTimings)
 					{
 						sb.Append('[');
 						foreach (var sid in parTiming.ShapeIds)

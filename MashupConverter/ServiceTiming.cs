@@ -14,7 +14,7 @@ namespace MashupConverter
             _slide = slide;
         }
 
-        public IEnumerable<SequenceTiming> SequenceTimings
+        public IEnumerable<StepTiming> StepTimings
         {
             get
             {
@@ -26,18 +26,18 @@ namespace MashupConverter
                 foreach (var ctn in ctnQuery)
                 {
                     // At the checkpoint where the user should click to play the animation.
-                    var timing = new SequenceTiming(ctn);
+                    var timing = new StepTiming(ctn);
                     yield return timing;
                 }
             }
         }
     }
 
-    public class SequenceTiming
+    public class StepTiming
     {
         private readonly CommonTimeNode _ctn;
 
-        public SequenceTiming(CommonTimeNode ctn)
+        public StepTiming(CommonTimeNode ctn)
         {
             _ctn = ctn;
         }
