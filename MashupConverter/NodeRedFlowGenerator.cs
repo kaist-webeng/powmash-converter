@@ -154,6 +154,10 @@ namespace MashupConverter
                 var nidIn = (string) meta["in"];
                 var nidOut = (string) meta["out"];
 
+                var nodeTopic = new NRFunctionNode(func: $"msg.topic = '{service.nodeName}';return msg;");
+                nodeTopic.Wire(next.Id);
+                nodeTopic.WriteTo(_writer);
+
                 foreach (var node in flowObj["flow"])
                 {
                     var id = (string) node["id"];
@@ -163,7 +167,7 @@ namespace MashupConverter
                     }
                     if (nidOut.Equals(id))
                     {
-                        NRNode.Wire((JObject) node, next.Id);
+                        NRNode.Wire((JObject) node, nodeTopic.Id);
                     }
                     node.WriteTo(_writer);
                 }
@@ -306,21 +310,24 @@ namespace MashupConverter
         public void UpdateFunc()
         {
             var sb = new StringBuilder();
-            sb.Append(@"let p = context.get('p') || undefined;
-                    if (undefined !== p) {
-                    return;
-                    }
-                    p = {};
-                    let ps = [];
-                    ");
+            sb.Append(@"
+let p = context.get('p') || undefined;
+if (undefined === p) {
+    p = {};
+    let ps = [];
+");
             foreach (var topic in _topics)
             {
                 sb.AppendFormat("ps.push(p['{0}'] = new Promise((resolve, reject) => undefined));\n", topic);
             }
-            sb.Append(@"let pAll = Promise.all(ps);
-                    pAll.then((...msgs) => node.send(msgs[0]));
-                    context.set('p', p);
-                    ");
+            sb.Append(@"
+    let pAll = Promise.all(ps);
+    pAll.then((...msgs) => node.send(msgs[0]));
+    context.set('p', p);
+}
+p[msg.topic].resolve(msg);
+return null;
+");
             this["func"] = sb.ToString();
         }
 
