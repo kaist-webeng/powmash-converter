@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using DocumentFormat.OpenXml.Presentation;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -32,9 +31,10 @@ namespace MashupConverter
             // Following is how we expect a non-blocked flow to be executed.
             //
             // 1. Accept a HTTP request.
-            // 2. Go through the switch node for activities.
-            // 3. For selected activity, go through the corresponding flow.
-            // 4. Return a HTTP response.
+            // 2. Increment the execution counter which holds the current activity index and activity step index.
+            // 3. Go through the switch node for activities.
+            // 4. For selected activity, go through the corresponding flow.
+            // 5. Return a HTTP response.
             //
             // However, since the representation for a Node-RED node contains the identifier of the next node,
             // it is better to generate the node and the flow first which are executed later.
@@ -45,8 +45,10 @@ namespace MashupConverter
             var nidsActivity = _activities.Select(a => new ActivityNRFlowGenerator(a, _writer).generate(nidHttpRes));
             // Place switch node for activity index then.
             var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
+            // Place a function node which increments the execution counter.
+            var nidExecCounter = generateExecCounterNode(nidSwitchActivity);
             // Place HTTP input node first.
-            generateHttpInNode(nidSwitchActivity);
+            generateHttpInNode(nidExecCounter);
 
             // End a JSON array in the writer.
             _writer.WriteEndArray();
@@ -61,22 +63,68 @@ namespace MashupConverter
 
         private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity)
         {
-            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.activityIdx", checkall: false);
+            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currActivity",
+                checkall: false);
             var i = 0u;
             foreach (var nid in nidsActivity)
             {
                 switchNode.Wire(nid, i);
                 ++i;
             }
+
+            // TODO: unify the generation of HTTP response body.
+            var response = new JObject
+            {
+                ["status"] = "success",
+                ["curr_activity"] = i,
+                ["curr_step"] = 1,
+                ["task_finished"] = true
+            };
+            var endOfTaskTemplateNode = new NRTemplateNode(
+                template: response.ToString(),
+                field: "payload",
+                format: NRTemplateNode.Format.Json,
+                syntax: NRTemplateNode.Syntax.Plain);
+            switchNode.Wire(endOfTaskTemplateNode, i++);
             switchNode.WriteTo(_writer);
             return switchNode.Id;
         }
 
-        private void generateHttpInNode(string nidSwitchActivity)
+        private string generateExecCounterNode(string nidSwitchActivity)
         {
-            var node = new NRHttpInNode(url: "/activities/:activityIdx/nbfs/:nbfIdx/execute",
-                method: NRHttpInNode.HttpMethod.POST);
+            var sb = new StringBuilder();
+            var nSteps =
+                from a in _activities
+                select a.Timing.StepTimings.Count();
+            sb.AppendFormat("const step = [{0}];\n", string.Join(", ", nSteps));
+            sb.Append(@"
+let currActivity = global.get('currActivity') || 1;
+let currStep = global.get('currStep') || 0;  // for the first execution.
+// Increment the counter.
+++currStep;
+// Check if the task is over.
+if (currActivity === 1 + step.length) {
+    return msg;
+}
+if (step[currActivity - 1] < currStep) {
+    ++currActivity;
+    currStep = 1;
+}
+global.set('currActivity', currActivity);
+global.set('currStep', currStep);
+return msg;
+");
+            var node = new NRFunctionNode(sb.ToString());
             node.Wire(nidSwitchActivity);
+            node.WriteTo(_writer);
+            return node.Id;
+        }
+
+        private void generateHttpInNode(string nidExecCounter)
+        {
+            var node = new NRHttpInNode(url: "/execute_next",
+                method: NRHttpInNode.HttpMethod.POST);
+            node.Wire(nidExecCounter);
             node.WriteTo(_writer);
         }
 
@@ -98,9 +146,9 @@ namespace MashupConverter
 
         public string generate(string nidHttpRes)
         {
-            // TODO: generate a switch node for non-blocked flows in the activity here.
             var returnNode = new NRFunctionNode();
-            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.MSG, property: "body.nbfIdx", checkall: false);
+            var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currStep",
+                checkall: false);
             var i = 0u;
             var timing = _activity.Timing;
             foreach (var stepTiming in timing.StepTimings)
@@ -349,6 +397,34 @@ return null;
             this["url"] = url;
             this["method"] = _methodValues[(uint) method];
             this["swaggerDoc"] = swaggerDoc;
+        }
+    }
+
+    public class NRTemplateNode : NRNode
+    {
+        public enum FieldType {Msg, Flow, Global}
+        // Syntax highlighting option.
+        public enum Format {Mustache, Html, Json, Javascript, Css, Markdown, None}
+        // Template format.
+        public enum Syntax {Mustache, Plain}
+
+        private static readonly string[] FieldTypeValues = {"msg", "flow", "global"};
+        private static readonly string[] FormatValues = {"mustache", "html", "json", "javascript", "css", "markdown",
+            "none"};
+        private static readonly string[] SyntaxValues = {"mustache", "plain"};
+
+        public NRTemplateNode(
+            string template,
+            string field,
+            FieldType fieldType = FieldType.Msg,
+            Format format = Format.Mustache,
+            Syntax syntax = Syntax.Mustache) : base("template")
+        {
+            this["template"] = template;
+            this["field"] = field;
+            this["fieldType"] = FieldTypeValues[(uint) fieldType];
+            this["format"] = FormatValues[(uint) format];
+            this["syntax"] = SyntaxValues[(uint) syntax];
         }
     }
 }
