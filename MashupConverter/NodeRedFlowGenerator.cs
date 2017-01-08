@@ -13,6 +13,7 @@ namespace MashupConverter
     {
         private readonly List<Activity> _activities = new List<Activity>();
         private readonly JsonWriter _writer;
+        private static readonly JsonConverter Converter = new StringEnumConverter(true);
 
         public NodeRedFlowGenerator(JsonWriter writer)
         {
@@ -72,10 +73,10 @@ namespace MashupConverter
             var _currStep = currStep?.ToString() ?? @"global.get('currStep')";
             string func = $@"
 msg.payload = {{
-    status: '{JsonConvert.SerializeObject(HttpResponseBody.StatusType.Success)}',
+    status: {JsonConvert.SerializeObject(HttpResponseBody.StatusType.Success, Converter)},
     curr_activity: {_currActivity},
     curr_step: {_currStep},
-    task_finished: {taskFinished}
+    task_finished: {(taskFinished ? "true" : "false")}
 }};
 msg.headers = msg.headers || {{}};
 msg.headers['Content-Type'] = 'application/json';
@@ -225,25 +226,52 @@ return msg;
                 var nidIn = (string) meta["in"];
                 var nidOut = (string) meta["out"];
 
-                var nodeTopic = new NRFunctionNode(func: $"msg.topic = '{service.nodeName}';return msg;");
+                var topic = service.nodeName;
+                var nodeTopic = new NRFunctionNode(func: $"msg.topic = '{topic}';return msg;");
                 nodeTopic.Wire(next.Id);
                 nodeTopic.WriteTo(_writer);
 
-                foreach (var node in flowObj["flow"])
-                {
-                    var id = (string) node["id"];
-                    if (nidIn.Equals(id))
-                    {
-                        prev.Wire(id, item.i);
-                    }
-                    if (nidOut.Equals(id))
-                    {
-                        NRNode.Wire((JObject) node, nodeTopic.Id);
-                    }
-                    node.WriteTo(_writer);
-                }
+                nidIn = generateCopyOfFlow((JArray) flowObj["flow"], nidIn, nidOut, nodeTopic.Id);
+                prev.Wire(nidIn);
+
+                next.AddTopic(topic);
             }
             prev.WriteTo(_writer);
+        }
+
+        private string generateCopyOfFlow(JArray flow, string nidIn, string nidOut, string nidTopic)
+        {
+            var nidInNew = "";
+            var changes = new Dictionary<string, string>();
+            foreach (var node in flow)
+            {
+                var nidOld = (string) node["id"];
+                var nidNew = NRNode.GenerateId();
+                if (nidIn.Equals(nidOld))
+                {
+                    nidInNew = nidNew;
+                }
+                if (nidOut.Equals(nidOld))
+                {
+                    NRNode.Wire((JObject) node, nidTopic);
+                }
+                changes[nidOld] = nidNew;
+                node["id"] = nidNew;
+            }
+            changes[nidTopic] = nidTopic;
+            foreach (var node in flow)
+            {
+                node["wires"] = new JArray(
+                    from wireGroup in node["wires"]
+                    select new JArray(
+                        from nid in wireGroup
+                        select changes[(string) nid]
+                    )
+                );
+                node.WriteTo(_writer);
+            }
+            Debug.Assert(nidInNew != null, "nidInNew != null");
+            return nidInNew;
         }
     }
 
@@ -291,6 +319,8 @@ return msg;
             this["id"] = Id = GenerateId();
             this["type"] = type;
             this["wires"] = _wires = new JArray();
+            this["x"] = 0;
+            this["y"] = 0;
         }
 
         public static string GenerateId()
