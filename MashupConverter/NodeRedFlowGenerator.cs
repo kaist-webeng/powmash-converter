@@ -66,7 +66,7 @@ namespace MashupConverter
             return node.Id;
         }
 
-        private string generateHttpResFuncNode(string nidHttpRes, uint? currActivity, uint? currStep, bool taskFinished)
+        private string generateHttpResFuncNode(string nidHttpRes, int? currActivity, int? currStep, bool taskFinished)
         {
             var _currActivity = currActivity?.ToString() ?? @"global.get('currActivity')";
             var _currStep = currStep?.ToString() ?? @"global.get('currStep')";
@@ -91,7 +91,7 @@ return msg;
         {
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currActivity",
                 checkall: false);
-            var i = 0u;
+            var i = 0;
             NRSwitchRule rule;
             foreach (var nid in nidsActivity)
             {
@@ -169,7 +169,7 @@ return msg;
             var returnNode = new NRFunctionNode();
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currStep",
                 checkall: false);
-            var i = 0u;
+            var i = 0;
             var timing = _activity.Timing;
             foreach (var stepTiming in timing.StepTimings)
             {
@@ -234,7 +234,7 @@ return msg;
                     var id = (string) node["id"];
                     if (nidIn.Equals(id))
                     {
-                        prev.Wire(id, (uint) item.i);
+                        prev.Wire(id, item.i);
                     }
                     if (nidOut.Equals(id))
                     {
@@ -257,9 +257,9 @@ return msg;
         [JsonProperty("status"), JsonConverter(typeof(StringEnumConverter), true)]
         public StatusType Status;
         [JsonProperty("curr_activity")]
-        public uint CurrActivity;
+        public int CurrActivity;
         [JsonProperty("curr_step")]
-        public uint CurrStep;
+        public int CurrStep;
         [JsonProperty("task_finished")]
         public bool TaskFinished;
 
@@ -299,7 +299,7 @@ return msg;
             return _random.Next().ToString("x8") + '.' + (_random.Next(0xffffff) + 1).ToString("x6");
         }
 
-        public static void Wire(JObject node, string nid, uint outputIdx = 0)
+        public static void Wire(JObject node, string nid, int outputIdx = 0)
         {
             JToken _wires;
             if (!node.TryGetValue("wires", out _wires))
@@ -320,12 +320,12 @@ return msg;
             ((JArray) wires[outputIdx]).Add(nid);
         }
 
-        public void Wire(string nid, uint outputIdx=0)
+        public void Wire(string nid, int outputIdx=0)
         {
             Wire(this, nid, outputIdx);
         }
 
-        public void Wire(NRNode node, uint outputIdx=0)
+        public void Wire(NRNode node, int outputIdx=0)
         {
             Wire(node.Id, outputIdx);
         }
