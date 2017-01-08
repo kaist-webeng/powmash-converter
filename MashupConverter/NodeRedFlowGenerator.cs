@@ -416,21 +416,19 @@ return msg;
         {
             var sb = new StringBuilder();
             sb.Append(@"
-let p = context.get('p') || undefined;
-if (undefined === p) {
-    p = {};
-    let ps = [];
+let resolve = context.get('resolve') || undefined;
+if (undefined === resolve) {
+    resolve = {};
+    let promises = [];
 ");
-            foreach (var topic in _topics)
-            {
-                sb.AppendFormat("ps.push(p['{0}'] = new Promise((resolve, reject) => undefined));\n", topic);
-            }
+            _topics.ForEach(topic =>
+                sb.AppendFormat("promises.push(new Promise((res, rej) => {{ resolve['{0}'] = res; }}));", topic));
             sb.Append(@"
-    let pAll = Promise.all(ps);
+    let pAll = Promise.all(promises);
     pAll.then((...msgs) => node.send(msgs[0]));
-    context.set('p', p);
+    context.set('resolve', resolve);
 }
-p[msg.topic].resolve(msg);
+resolve[msg.topic](msg);
 return null;
 ");
             this["func"] = sb.ToString();
