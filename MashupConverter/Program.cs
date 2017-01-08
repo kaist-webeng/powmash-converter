@@ -1,46 +1,49 @@
-﻿using System;
-using System.Linq;
-using System.Collections.Generic;
+﻿using System.Linq;
+using System.IO;
+using CommandLine;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml;
-using System.Text;
+using Newtonsoft.Json;
 
 namespace MashupConverter
 {
+    internal class Options
+    {
+        [Value(0, Required = true, HelpText = "Input file to read.")]
+        public string InputFile { get; set; }
+
+        [Value(1, Required = true, HelpText = "Output file to write.")]
+        public string OutputFile { get; set; }
+    }
+
 	class MainClass
 	{
 		public static void Main(string[] args)
 		{
-			var filename = @"/Users/nyangkun/workspace/juventino/sandbox2.pptx";
-			using (PresentationDocument ppt = PresentationDocument.Open(filename, false))
+		    var pathInput = "";
+		    var pathOutput = "";
+		    var result = Parser.Default.ParseArguments<Options>(args)
+		        .WithParsed(options =>
+		        {
+		            pathInput = options.InputFile;
+		            pathOutput = options.OutputFile;
+		        });
+
+			using (var ppt = PresentationDocument.Open(pathInput, false))
+			using (var sw = new StreamWriter(pathOutput))
+            using (var writer = new JsonTextWriter(sw))
+            using (var generator = new NodeRedFlowGenerator(writer))
 			{
-				PresentationPart part = ppt.PresentationPart;
-				OpenXmlElementList slideIds = part.Presentation.SlideIdList.ChildElements;
-				var relId = (slideIds[0] as SlideId).RelationshipId;
-
-				SlidePart slide = (SlidePart)part.GetPartById(relId);
-				ActivityTiming at = new ActivityTiming(slide);
-				StringBuilder sb = new StringBuilder();
-
-				sb.Append('[');
-				foreach (var stepTiming in at.StepTimings)
-				{
-					sb.Append('[');
-					foreach (var parTiming in stepTiming.ParallelTimings)
-					{
-						sb.Append('[');
-						foreach (var sid in parTiming.ShapeIds)
-						{
-							sb.AppendFormat("{0},", sid);
-						}
-						sb.Append("],");
-					}
-					sb.Append("],");
-				}
-				sb.Append(']');
-
-				Console.WriteLine(sb);
+				var prezPart = ppt.PresentationPart;
+				var slideIds = prezPart.Presentation.SlideIdList.ChildElements;
+			    var slideParts = from sid in slideIds
+			        select (SlidePart) prezPart.GetPartById(((SlideId) sid).RelationshipId);
+			    foreach (var sp in slideParts)
+			    {
+			        var activity = new Activity(sp);
+			        generator.Add(activity);
+			    }
+			    generator.Generate();
 			}
 		}
 	}
