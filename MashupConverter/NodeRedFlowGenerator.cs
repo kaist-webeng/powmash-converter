@@ -11,8 +11,8 @@ namespace MashupConverter
 {
     public class NodeRedFlowGenerator : IDisposable
     {
-        private List<Activity> _activities;
-        private JsonWriter _writer;
+        private readonly List<Activity> _activities = new List<Activity>();
+        private readonly JsonWriter _writer;
 
         public NodeRedFlowGenerator(JsonWriter writer)
         {
