@@ -26,7 +26,7 @@ namespace MashupConverter
             {
                 { ShapeTypeValues.Rectangle, new Service("display") },
                 { ShapeTypeValues.FoldedCorner, new Service("latest-news") },
-                { ShapeTypeValues.Sun, new Service("lightning") }
+                { ShapeTypeValues.Sun, new Service("lightening") }
             };
         }
 
