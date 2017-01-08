@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 
 namespace MashupConverter
@@ -41,10 +42,14 @@ namespace MashupConverter
 
             // Place HTTP response node last.
             var nidHttpRes = generateHttpResNode();
+            // Place a function node which sets the message to the execution result.
+            var nidHttpResFunc = generateHttpResFuncNode(nidHttpRes, null, null, false);
             // For each activity, generate its flow.
-            var nidsActivity = _activities.Select(a => new ActivityNRFlowGenerator(a, _writer).generate(nidHttpRes));
+            var nidsActivity = _activities
+                .Select(a => new ActivityNRFlowGenerator(a, _writer)
+                .generate(nidHttpResFunc));
             // Place switch node for activity index then.
-            var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity);
+            var nidSwitchActivity = generateSwitchActivityFlow(nidsActivity, nidHttpRes);
             // Place a function node which increments the execution counter.
             var nidExecCounter = generateExecCounterNode(nidSwitchActivity);
             // Place HTTP input node first.
@@ -61,7 +66,28 @@ namespace MashupConverter
             return node.Id;
         }
 
-        private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity)
+        private string generateHttpResFuncNode(string nidHttpRes, uint? currActivity, uint? currStep, bool taskFinished)
+        {
+            var _currActivity = currActivity?.ToString() ?? @"global.get('currActivity')";
+            var _currStep = currStep?.ToString() ?? @"global.get('currStep')";
+            string func = $@"
+msg.payload = {{
+    status: '{JsonConvert.SerializeObject(HttpResponseBody.StatusType.Success)}',
+    curr_activity: {_currActivity},
+    curr_step: {_currStep},
+    task_finished: {taskFinished}
+}};
+msg.headers = msg.headers || {{}};
+msg.headers['Content-Type'] = 'application/json';
+return msg;
+";
+            var node = new NRFunctionNode(func);
+            node.Wire(nidHttpRes);
+            node.WriteTo(_writer);
+            return node.Id;
+        }
+
+        private string generateSwitchActivityFlow(IEnumerable<string> nidsActivity, string nidHttpRes)
         {
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currActivity",
                 checkall: false);
@@ -76,22 +102,10 @@ namespace MashupConverter
                 ++i;
             }
 
-            // TODO: unify the generation of HTTP response body.
-            var response = new JObject
-            {
-                ["status"] = "success",
-                ["curr_activity"] = i,
-                ["curr_step"] = 1,
-                ["task_finished"] = true
-            };
-            var endOfTaskTemplateNode = new NRTemplateNode(
-                template: response.ToString(),
-                field: "payload",
-                format: NRTemplateNode.Format.Json,
-                syntax: NRTemplateNode.Syntax.Plain);
+            var nidEndOfTask = generateHttpResFuncNode(nidHttpRes, i, 1, true);
             rule = new NRSwitchRule(NRSwitchRule.OperatorType.EQ, (i + 1).ToString(), NRSwitchRule.ValueType.Num);
             switchNode.AddRule(rule);
-            switchNode.Wire(endOfTaskTemplateNode, i);
+            switchNode.Wire(nidEndOfTask, i);
             switchNode.WriteTo(_writer);
             return switchNode.Id;
         }
@@ -150,7 +164,7 @@ return msg;
             _writer = writer;
         }
 
-        public string generate(string nidHttpRes)
+        public string generate(string nidHttpResFunc)
         {
             var returnNode = new NRFunctionNode();
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currStep",
@@ -166,7 +180,7 @@ return msg;
                 switchNode.Wire(nidStep, i);
                 ++i;
             }
-            returnNode.Wire(nidHttpRes);
+            returnNode.Wire(nidHttpResFunc);
             returnNode.WriteTo(_writer);
             switchNode.WriteTo(_writer);
             return switchNode.Id;
@@ -230,6 +244,39 @@ return msg;
                 }
             }
             prev.WriteTo(_writer);
+        }
+    }
+
+    internal struct HttpResponseBody
+    {
+        public enum StatusType
+        {
+            Success, Error
+        }
+
+        [JsonProperty("status"), JsonConverter(typeof(StringEnumConverter), true)]
+        public StatusType Status;
+        [JsonProperty("curr_activity")]
+        public uint CurrActivity;
+        [JsonProperty("curr_step")]
+        public uint CurrStep;
+        [JsonProperty("task_finished")]
+        public bool TaskFinished;
+
+        [Obsolete]
+        public NRTemplateNode TemplateNode
+        {
+            get
+            {
+                var body = JsonConvert.SerializeObject(this);
+                var node = new NRTemplateNode(
+                        template: body,
+                        field: "payload",
+                        format: NRTemplateNode.Format.Json,
+                        syntax: NRTemplateNode.Syntax.Plain
+                );
+                return node;
+            }
         }
     }
 
