@@ -17,6 +17,15 @@ namespace MashupConverter
         public string OutputFile { get; set; }
     }
 
+    internal class SeekableTempStream : MemoryStream
+    {
+        public SeekableTempStream(Stream s)
+        {
+            s.CopyTo(this);
+            Position = 0;
+        }
+    }
+
     class MainClass
     {
         public static void Main(string[] args)
@@ -31,7 +40,11 @@ namespace MashupConverter
                 });
 
             using (var istream =
-                null == pathInput ? Console.OpenStandardInput() : File.Open(pathInput, FileMode.Open))
+                null == pathInput ?
+                    // If the standard input is used, make a temporary copy of this stream inside the memory.
+                    // This should be done because the input stream to PresentationDocument should be seekable.
+                    (Stream) new SeekableTempStream(Console.OpenStandardInput()) :
+                    File.Open(pathInput, FileMode.Open))
             using (var ppt = PresentationDocument.Open(istream, false))
             using (var ostream =
                 null == pathOutput ? Console.OpenStandardOutput() : File.Open(pathOutput, FileMode.Create))
