@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.IO;
 using CommandLine;
 using DocumentFormat.OpenXml.Presentation;
@@ -9,10 +10,10 @@ namespace MashupConverter
 {
     internal class Options
     {
-        [Value(0, Required = true, HelpText = "Input file to read.")]
+        [Option('i', "input", Required = false, HelpText = "Input file to read.")]
         public string InputFile { get; set; }
 
-        [Value(1, Required = true, HelpText = "Output file to write.")]
+        [Option('o', "output", Required = false, HelpText = "Output file to write.")]
         public string OutputFile { get; set; }
     }
 
@@ -20,8 +21,8 @@ namespace MashupConverter
 	{
 		public static void Main(string[] args)
 		{
-		    var pathInput = "";
-		    var pathOutput = "";
+		    string pathInput = null;
+		    string pathOutput = null;
 		    var result = Parser.Default.ParseArguments<Options>(args)
 		        .WithParsed(options =>
 		        {
@@ -29,8 +30,12 @@ namespace MashupConverter
 		            pathOutput = options.OutputFile;
 		        });
 
-			using (var ppt = PresentationDocument.Open(pathInput, false))
-			using (var sw = new StreamWriter(pathOutput))
+		    using (var istream =
+		        null == pathInput ? Console.OpenStandardInput() : File.Open(pathInput, FileMode.Open))
+			using (var ppt = PresentationDocument.Open(istream, false))
+			using (var ostream =
+			    null == pathOutput ? Console.OpenStandardOutput() : File.Open(pathOutput, FileMode.Create))
+			using (var sw = new StreamWriter(ostream))
             using (var writer = new JsonTextWriter(sw))
             using (var generator = new NodeRedFlowGenerator(writer))
 			{
