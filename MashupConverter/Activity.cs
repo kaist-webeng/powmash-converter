@@ -4,14 +4,14 @@ namespace MashupConverter
 {
     public class Activity
     {
-        public readonly ActivityTiming Timing;
+        public readonly ActivityBehavior Behavior;
         public readonly SlideServiceMap ServiceMap;
         private readonly SlidePart _slidePart;
 
         public Activity(SlidePart slidePart)
         {
             _slidePart = slidePart;
-            Timing = new ActivityTiming(slidePart);
+            Behavior = new ActivityBehavior(slidePart);
             ServiceMap = new SlideServiceMap(slidePart);
         }
     }

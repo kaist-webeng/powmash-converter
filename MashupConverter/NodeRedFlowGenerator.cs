@@ -116,7 +116,7 @@ return msg;
             var sb = new StringBuilder();
             var nSteps =
                 from a in _activities
-                select a.Timing.StepTimings.Count();
+                select a.Behavior.StepTimings.Count();
             sb.AppendFormat("const step = [{0}];\n", string.Join(", ", nSteps));
             sb.Append(@"
 let currActivity = global.get('currActivity') || 1;
@@ -171,8 +171,8 @@ return msg;
             var switchNode = new NRSwitchNode(NRSwitchNode.PropertyType.GLOBAL, property: "currStep",
                 checkall: false);
             var i = 0;
-            var timing = _activity.Timing;
-            foreach (var stepTiming in timing.StepTimings)
+            var behavior = _activity.Behavior;
+            foreach (var stepTiming in behavior.StepTimings)
             {
                 var nidStep = generateStepFlow(stepTiming, returnNode.Id);
                 var rule = new NRSwitchRule(NRSwitchRule.OperatorType.EQ, (i + 1).ToString(),

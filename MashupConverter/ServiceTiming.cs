@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Packaging;
 namespace MashupConverter
 {
-    public class ActivityTiming
+    public class ActivityBehavior
     {
         private readonly SlidePart _slide;
 
-        public ActivityTiming(SlidePart slide)
+        public ActivityBehavior(SlidePart slide)
         {
             _slide = slide;
         }
