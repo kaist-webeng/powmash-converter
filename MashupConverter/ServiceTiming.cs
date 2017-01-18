@@ -32,6 +32,8 @@ namespace MashupConverter
                 }
             }
         }
+
+        public Transition Transition => new Transition(_slide.Slide.Transition);
     }
 
     public class StepTiming
@@ -79,6 +81,62 @@ namespace MashupConverter
                     yield return Convert.ToUInt32(shapeId);
                 }
             }
+        }
+    }
+
+    public class Transition
+    {
+        private readonly DocumentFormat.OpenXml.Presentation.Transition _trans;
+
+        public Transition(DocumentFormat.OpenXml.Presentation.Transition trans)
+        {
+            _trans = trans;
+        }
+
+        public bool OnClick => _trans.AdvanceOnClick;
+        public bool Auto => _trans.AdvanceAfterTime.HasValue;
+        public uint Delay => Auto ? Convert.ToUInt32(_trans.AdvanceAfterTime.Value) : 0;
+        public TimeSpan? Duration => _trans.Duration.HasValue ? ParseUniversalTimeOffset(_trans.Duration.Value) : null;
+
+        private static TimeSpan? ParseUniversalTimeOffset(string offset)
+        {
+            var _offset = Regex.Replace(offset, @"\s", string.Empty);
+            var m = Regex.Match(_offset, @"(?<number>\d+(\.\d+)?)(?<unit>h|min|s|ms|µs|ns)");
+            if (!m.Success)
+            {
+                return null;
+            }
+            var number = Convert.ToDouble(m.Groups["number"]);
+            var unit = m.Groups["unit"].Value;
+            var hours = 0;
+            var minutes = 0;
+            var seconds = 0;
+            var milliseconds = 0;
+            switch (unit)
+            {
+                case "h":
+                    hours = (int) number;
+                    number = 60 * (number - hours);
+                    goto case "min";
+
+                case "min":
+                    minutes = (int) number;
+                    number = 60 * (number - minutes);
+                    goto case "s";
+
+                case "s":
+                    seconds = (int) number;
+                    number = 1000 * (number - seconds);
+                    goto case "ms";
+
+                case "ms":
+                    milliseconds = (int) number;
+                    break;
+
+                default:
+                    break;
+            }
+            return new TimeSpan(0, hours, minutes, seconds, milliseconds);
         }
     }
 }
