@@ -237,7 +237,18 @@ return msg;
                 nodeTopic.WriteTo(_writer);
 
                 nidIn = generateCopyOfFlow((JArray) flowObj["flow"], nidIn, nidOut, nodeTopic.Id);
-                prev.Wire(nidIn);
+
+                // If this animation effect has a delay, put a delay node.
+                var nidFirst = nidIn;
+                if (anim.HasDefiniteDelay && anim.Delay > 0)
+                {
+                    var nodeDelay = new NRDelayNode(anim.Delay);
+                    nodeDelay.Wire(nidIn);
+                    nodeDelay.WriteTo(_writer);
+                    nidFirst = nodeDelay.Id;
+                }
+
+                prev.Wire(nidFirst);
 
                 next.AddTopic(topic);
             }
@@ -515,6 +526,23 @@ return null;
             this["fieldType"] = FieldTypeValues[(uint) fieldType];
             this["format"] = FormatValues[(uint) format];
             this["syntax"] = SyntaxValues[(uint) syntax];
+        }
+    }
+
+    public class NRDelayNode : NRNode
+    {
+        public NRDelayNode(uint delay) : base("delay")
+        {
+            this["pauseType"] = "delay";
+            this["timeout"] = delay;
+            this["timeoutUnits"] = "milliseconds";
+            this["rate"] = 1;
+            this["nbRateUnits"] = 1;
+            this["rateUnits"] = "second";
+            this["randomFirst"] = 1;
+            this["randomLast"] = 5;
+            this["randomUnits"] = "seconds";
+            this["drop"] = false;
         }
     }
 }
