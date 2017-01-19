@@ -69,19 +69,9 @@ namespace MashupConverter
             _ctn = ctn;
         }
 
-        public IEnumerable<uint> ShapeIds
-        {
-            get
-            {
-                var shapePars = _ctn.ChildTimeNodeList.Elements<ParallelTimeNode>();
-                foreach (var shapePar in shapePars)
-                {
-                    var shapeSet = shapePar.CommonTimeNode.ChildTimeNodeList.Elements<SetBehavior>().First();
-                    var shapeId = shapeSet.CommonBehavior.TargetElement.ShapeTarget.ShapeId;
-                    yield return Convert.ToUInt32(shapeId);
-                }
-            }
-        }
+        public IEnumerable<Animation> Animations =>
+            from par in _ctn.ChildTimeNodeList.Elements<ParallelTimeNode>()
+            select new Animation(par);
     }
 
     public class Transition
@@ -137,6 +127,39 @@ namespace MashupConverter
                     break;
             }
             return new TimeSpan(0, hours, minutes, seconds, milliseconds);
+        }
+    }
+
+    public enum AnimationType { Entrance, Exit }
+
+    public struct Animation
+    {
+        private static readonly Dictionary<TimeNodePresetClassValues, AnimationType> TypeDict =
+            new Dictionary<TimeNodePresetClassValues, AnimationType>
+            {
+                {TimeNodePresetClassValues.Entrance, AnimationType.Entrance},
+                {TimeNodePresetClassValues.Exit, AnimationType.Exit}
+            };
+
+        public static bool SupportsPresetClass(TimeNodePresetClassValues cls)
+        {
+            return TypeDict.ContainsKey(cls);
+        }
+
+        public AnimationType Type;
+        public uint ShapeId;
+        public bool HasDefiniteDelay;
+        public uint Delay;
+
+        public Animation(ParallelTimeNode par)
+        {
+            var ctn = par.CommonTimeNode;
+            var shapeSet = ctn.ChildTimeNodeList.Elements<SetBehavior>().First();
+            Type = TypeDict[ctn.PresetClass];
+            ShapeId = Convert.ToUInt32(shapeSet.CommonBehavior.TargetElement.ShapeTarget.ShapeId);
+            var delay = ctn.StartConditionList.Elements<Condition>().First().Delay;
+            HasDefiniteDelay = delay != "indefinite";
+            Delay = HasDefiniteDelay ? Convert.ToUInt32(delay) : 0;
         }
     }
 }

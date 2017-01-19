@@ -208,9 +208,9 @@ return msg;
         private void generateParallelFlow(ParallelTiming timing, NRFunctionNode prev, NRJoinFunctionNode next)
         {
             var svcmap = _activity.ServiceMap;
-            foreach (var item in timing.ShapeIds.Select((sid, i) => new {service = svcmap.Lookup(sid), i}))
+            foreach (var anim in timing.Animations)
             {
-                var service = item.service;
+                var service = svcmap.Lookup(anim.ShapeId);
                 if (null == service)
                 {
                     // No available service for the shape.
