@@ -218,7 +218,11 @@ return msg;
                 }
 
                 JObject flowObj;
-                using (var flowReader = service.NodeRedFlow.Reader)
+                using (var flow =
+                    anim.Type == AnimationType.Entrance ?
+                    service.ActivationFlow :
+                    service.DeactivationFlow)
+                using (var flowReader = flow.Reader)
                 {
                     flowObj = (JObject) JToken.ReadFrom(flowReader);
                 }
@@ -226,7 +230,8 @@ return msg;
                 var nidIn = (string) meta["in"];
                 var nidOut = (string) meta["out"];
 
-                var topic = service.nodeName;
+                var topic =
+                    $@"{service.nodeName}-{(anim.Type == AnimationType.Entrance ? "activation" : "deactivation")}";
                 var nodeTopic = new NRFunctionNode(func: $"msg.topic = '{topic}';return msg;");
                 nodeTopic.Wire(next.Id);
                 nodeTopic.WriteTo(_writer);

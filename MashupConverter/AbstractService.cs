@@ -40,7 +40,8 @@ namespace MashupConverter
             return _dict[shapeType];
         }
 
-        public ServiceFlow NodeRedFlow => new ServiceFlow(this);
+        public ServiceFlow ActivationFlow => new ServiceFlow(this, "activation");
+        public ServiceFlow DeactivationFlow => new ServiceFlow(this, "deactivation");
     }
 
     public class ServiceFlow : IDisposable
@@ -49,9 +50,9 @@ namespace MashupConverter
         private StreamReader _sr;
         public JsonReader Reader;
 
-        public ServiceFlow(Service svc)
+        public ServiceFlow(Service svc, string msg)
         {
-            var filePath = svc.nodeName + ".json";
+            var filePath = $@"{svc.nodeName}-{msg}.json";
             _s = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             _sr = new StreamReader(_s);
             Reader = new JsonTextReader(_sr);
