@@ -5,6 +5,7 @@ using CommandLine;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Packaging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace MashupConverter
 {
@@ -23,6 +24,31 @@ namespace MashupConverter
         {
             s.CopyTo(this);
             Position = 0;
+        }
+    }
+
+    public class JsonFileServiceRepo : ServiceRepo
+    {
+        // FIXME: persistence to service repository JSON file.
+        public override bool Add(string serviceType) => AddOneTime(serviceType);
+
+        public bool AddFrom(FileStream stream)
+        {
+            if (!stream.CanRead)
+            {
+                return false;
+            }
+
+            using (var sr = new StreamReader(stream))
+            using (var reader = new JsonTextReader(sr))
+            {
+                var _serviceTypes = JToken.Load(reader);
+                if (_serviceTypes.Type != JTokenType.Array)
+                {
+                    return false;
+                }
+                return _serviceTypes.All(st => st.Type == JTokenType.String && Add(((JValue) st).ToString()));
+            }
         }
     }
 
@@ -50,8 +76,12 @@ namespace MashupConverter
                 null == pathOutput ? Console.OpenStandardOutput() : File.Open(pathOutput, FileMode.Create))
             using (var sw = new StreamWriter(ostream))
             using (var writer = new JsonTextWriter(sw))
+            using (var repoIndex = File.Open("services.json", FileMode.Open, FileAccess.Read))
             using (var generator = new NodeRedFlowGenerator(writer))
             {
+                // Load service index from the service repository.
+                SlideServiceMap.LoadRepoFrom(repoIndex);
+
                 var prezPart = ppt.PresentationPart;
                 var slideIds = prezPart.Presentation.SlideIdList.ChildElements;
                 var slideParts = from sid in slideIds

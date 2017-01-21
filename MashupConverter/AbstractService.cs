@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using Newtonsoft.Json;
@@ -44,6 +45,37 @@ namespace MashupConverter
         public ServiceFlow DeactivationFlow => new ServiceFlow(this, "deactivation");
     }
 
+    public abstract class ServiceRepo
+    {
+        protected readonly Dictionary<string, Service> Dict = new Dictionary<string, Service>();
+
+        public bool IsAvailable(string serviceType)
+        {
+            return Dict.ContainsKey(serviceType);
+        }
+
+        public Service Find(string serviceType)
+        {
+            return IsAvailable(serviceType) ? Dict[serviceType] : null;
+        }
+
+        public abstract bool Add(string serviceType);
+
+        public bool Add(IEnumerable<string> serviceTypes) => !serviceTypes.SkipWhile(Add).Any();
+
+        public bool AddOneTime(string serviceType) => AddToDict(serviceType);
+
+        protected bool AddToDict(string serviceType)
+        {
+            if (Dict.ContainsKey(serviceType))
+            {
+                return false;
+            }
+            Dict[serviceType] = new Service(serviceType);
+            return true;
+        }
+    }
+
     public class ServiceFlow : IDisposable
     {
         private Stream _s;
@@ -68,6 +100,8 @@ namespace MashupConverter
 
     public class SlideServiceMap
     {
+        private static readonly JsonFileServiceRepo Repo = new JsonFileServiceRepo();
+
         private Dictionary<uint, Service> _dict = new Dictionary<uint, Service>();
         private readonly SlidePart _slidePart;
 
@@ -82,6 +116,11 @@ namespace MashupConverter
             Service s;
             _dict.TryGetValue(uid, out s);
             return s;
+        }
+
+        public static bool LoadRepoFrom(FileStream stream)
+        {
+            return Repo.AddFrom(stream);
         }
 
         private void populate()
