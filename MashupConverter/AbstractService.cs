@@ -51,7 +51,7 @@ namespace MashupConverter
 
         public bool IsAvailable(string serviceType)
         {
-            return Dict.ContainsKey(serviceType);
+            return serviceType != null && Dict.ContainsKey(serviceType);
         }
 
         public Service Find(string serviceType)
@@ -126,11 +126,11 @@ namespace MashupConverter
         private void populate()
         {
             var slide = _slidePart.Slide;
-            foreach (var sp in slide.Descendants<Shape>())
+            foreach (var dp in slide.Descendants<NonVisualDrawingProperties>())
             {
-                var uid = sp.NonVisualShapeProperties.NonVisualDrawingProperties.Id;
-                var shapeType = sp.ShapeProperties.GetFirstChild<PresetGeometry>().Preset;
-                _dict.Add(uid, Service.Of(shapeType));
+                var uid = dp.Id;
+                var altTextTitle = dp.Title;
+                _dict.Add(uid, Repo.Find(altTextTitle));
             }
         }
     }
