@@ -25,6 +25,11 @@ namespace MashupConverter
             _activities.Add(activity);
         }
 
+        public void Add(IEnumerable<Activity> activities)
+        {
+            _activities.AddRange(activities);
+        }
+
         public void Generate()
         {
             // Start a JSON array in the writer.

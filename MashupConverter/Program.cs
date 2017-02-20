@@ -82,15 +82,9 @@ namespace MashupConverter
                 // Load service index from the service repository.
                 SlideServiceMap.LoadRepoFrom(repoIndex);
 
-                var prezPart = ppt.PresentationPart;
-                var slideIds = prezPart.Presentation.SlideIdList.ChildElements;
-                var slideParts = from sid in slideIds
-                    select (SlidePart) prezPart.GetPartById(((SlideId) sid).RelationshipId);
-                foreach (var sp in slideParts)
-                {
-                    var activity = new Activity(sp);
-                    generator.Add(activity);
-                }
+                var prez = new Presentation(ppt);
+
+                generator.Add(prez.Activities);
                 generator.Generate();
             }
         }
